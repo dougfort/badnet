@@ -1,6 +1,8 @@
 use anyhow::Error;
+use tokio::sync::watch;
 
 mod config;
+mod node;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -12,14 +14,45 @@ async fn main() -> Result<(), Error> {
 
     let config = config::load_configuration()?;
 
-    tracing::info!("program starts; node count = {}; base port number = {}", config.node_count, config.base_port_number);
+    tracing::info!(
+        "program starts; node count = {}; base port number = {}",
+        config.node_count,
+        config.base_port_number
+    );
 
+    let mut halt = false;
+    let (halt_tx, halt_rx) = watch::channel(halt);
+
+    let mut join_handles = vec![];
+    for node_id in 1..=config.node_count {
+        let port_number = config.base_port_number;
+        let halt_rx = halt_rx.clone();
+
+        let join_handle = tokio::spawn(async move {
+            node::node_runner(node_id, port_number, halt_rx).await?;
+
+            Ok::<(), Error>(())
+        });
+        join_handles.push((node_id, join_handle));
+    }
+
+    // wait for a signal
     shutdown_signal().await;
+
+    tracing::debug!("sending halt to spawned nodes");
+    halt = true;
+    halt_tx.send(halt)?;
+
+    for (node_id, join_handle) in join_handles {
+        let result = join_handle.await?;
+        tracing::debug!("node: {:03}; join result = {:?}", node_id, result);
+    }
+
     Ok(())
 }
 
 /// unix signal handler
-/// pasted from Axum exampe
+/// pasted from Axum example
 async fn shutdown_signal() {
     use std::io;
     use tokio::signal::unix::SignalKind;
