@@ -3,6 +3,7 @@ use tokio::sync::watch;
 
 mod config;
 mod node;
+mod state;
 
 #[tokio::main]
 async fn main() -> Result<(), Error> {
@@ -20,16 +21,19 @@ async fn main() -> Result<(), Error> {
         config.base_port_number
     );
 
+    let state = state::SharedState::default();
+
     let mut halt = false;
     let (halt_tx, halt_rx) = watch::channel(halt);
 
     let mut join_handles = vec![];
     for node_id in 1..=config.node_count {
-        let port_number = config.base_port_number;
+        let node_state = state.clone();
+        let port_number = config.base_port_number + node_id;
         let halt_rx = halt_rx.clone();
 
         let join_handle = tokio::spawn(async move {
-            node::node_runner(node_id, port_number, halt_rx).await?;
+            node::node_runner(node_id, node_state, port_number, halt_rx).await?;
 
             Ok::<(), Error>(())
         });
