@@ -3,6 +3,7 @@ use tokio::sync::watch;
 
 mod config;
 mod node;
+mod randstat;
 mod state;
 
 #[tokio::main]
@@ -21,7 +22,11 @@ async fn main() -> Result<(), Error> {
         config.base_port_number
     );
 
-    let state = state::SharedState::default();
+    let state_init = vec![randstat::StatInit {
+        percentage: 10,
+        value: state::Event::Disconnect as u8,
+    }];
+    let state = state::wrap_shared_state(state::State::new(&state_init)?);
 
     let mut halt = false;
     let (halt_tx, halt_rx) = watch::channel(halt);

@@ -1,11 +1,6 @@
 use anyhow::Error;
-use axum::{
-    extract::Extension,
-    routing::{get, post},
-    Json, Router,
-};
+use axum::{routing::get, Router};
 use tokio::sync::watch;
-use tower::ServiceBuilder;
 use tower_http::{add_extension::AddExtensionLayer, trace::TraceLayer};
 
 use crate::state;
