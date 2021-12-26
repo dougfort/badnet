@@ -12,7 +12,9 @@ async fn main() -> Result<(), Error> {
     if std::env::var_os("RUST_LOG").is_none() {
         std::env::set_var("RUST_LOG", "badnet=debug")
     }
-    tracing_subscriber::fmt::init();
+    tracing_subscriber::fmt()
+        .with_env_filter(r#"badnet=debug"#)
+        .init();
 
     let config = config::load_configuration()?;
 
